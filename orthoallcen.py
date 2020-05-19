@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import os
 from math import sqrt
 
 
@@ -9,19 +10,25 @@ from math import sqrt
 # init() set up the original coefficients. The initial NN of dopant NN are assumed to be zero. And we start with a small central coeff
 
 def set_para(OS):
-    if OS == 'Mac':
-        location = '/Users/rayliu/Desktop/Code/ortho/'
-    else:
-        location = 'C:/Users/Ray/Desktop/Code/code1/'
     para = {
+    'OS'        : OS,
     'orb_count' : 10,
     'NN_count'  : 1,
     'scale'     : 20, 
-    'testcase'  : 5,
+    'testcase'  : 100,
     'limit'     : 1.5, 
     'gradual'   : 1, 
     'core'      : '4221', 
-    'numtype'   : 2}
+    'numtype'   : 2,
+    }
+    
+    para['dir'] = 'res/2sublat_' + para['core'] + '_gradual_' + str(para['gradual']) + '_NN_' + str(para['NN_count']) + '_iter_' + str(para['testcase']) + '/'
+    if OS == 'Mac':
+        location = '/Users/rayliu/Desktop/Code/ortho/'
+        os.system('mkdir' + para['dir'])
+    else:
+        location = 'C:/Users/Ray/Desktop/Code/code1/'
+        os.system('powershell.exe mkdir '+ para['dir'])
     ovlp = []
     if para['NN_count'] == 4:
         ovlp.append(location + para['core'] + '/alloverlap1.dat')
@@ -30,6 +37,7 @@ def set_para(OS):
         ovlp.append(location + para['core'] + '/simpleoverlap1.dat')
         ovlp.append(location + para['core'] + '/simpleoverlap2.dat')
     para['files'] = ovlp
+    
     return para
 
 
@@ -172,8 +180,7 @@ def resplot(coeffarray, cen, para):
     ax[1].set_ylabel('Orbital Coefficients')
     plt.ylim(-para['limit'], para['limit'])
     # plt.ylim(-0.5,0.0)
-    figname = './res/2para_' + para['core'] + '_orbital_' + str(cen) + '_gradual_' + str(para['gradual']) + '_NN_' + str(
-        para['NN_count']) + '_iter_' + str(para['testcase'])
+    figname = para['dir'] +  'orbital_' + str(cen) 
     plt.savefig(figname)
     plt.show()
 
@@ -187,20 +194,20 @@ def ovlpplot(ovlparray, cen, para):
     ax[1].set_ylabel('Wavefunction Overlap')
     plt.ylim(-1.1, 1.1)
     # plt.ylim(-0.5,0.0)
-    figname = './res/2para_' + para['core'] + '_orbital_' + str(cen) + '_gradual_' + str(para['gradual']) + '_NN_' + str(
-        para['NN_count']) + '_iter_' + str(para['testcase']) + 'ovlp'
+    figname = para['dir'] +  'orbital_' + str(cen) 
     plt.savefig(figname)
     plt.show()
 
 
 def saveresult(new, norm, seed, para):
     temp = np.zeros((para['numtype'], para['orb_count'], para['orb_count'] * para['NN_count'] + para['orb_count'] + 1))
-    txtname = '2para_' + para['core'] + '_gradual_' + str(para['gradual']) + '_NN_' + str(para['NN_count']) + '_iter_' + str(para['testcase']) + '.dat'
+    txtname = para['dir'] +  'wf'
+    seedname = para['dir'] +  'seed'
     for orb in range(para['orb_count']):
         for types in range(para['numtype']):
             temp[types][orb] = np.append(new[types][orb], norm[types][orb])
-    np.save('./res/' + txtname, temp)
-    np.save('./res/seed' + txtname, seed)
+    np.save( txtname, temp)
+    np.save( seedname, seed)
 
 def solve(cen, ovlp, old, types, para):
     LHS = setmatrix(cen, ovlp, old, types, para)
