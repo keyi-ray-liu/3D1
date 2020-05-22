@@ -15,13 +15,13 @@ def set_para(OS):
     'orb_count' : 10,
     'NN_count'  : 1,
     'scale'     : 20, 
-    'testcase'  : 100,
+    'testcase'  : 300,
     'limit'     : 1.5, 
-    'gradual'   : 1, 
+    'gradual'   : 0.05, 
     'core'      : '4221', 
     'numtype'   : 2,
     }
-    
+
     para['dir'] = 'res/2sublat_' + para['core'] + '_gradual_' + str(para['gradual']) + '_NN_' + str(para['NN_count']) + '_iter_' + str(para['testcase']) + '/'
     if OS == 'Mac':
         location = '/Users/rayliu/Desktop/Code/ortho/'
@@ -180,8 +180,8 @@ def resplot(coeffarray, cen, para):
     ax[1].set_ylabel('Orbital Coefficients')
     plt.ylim(-para['limit'], para['limit'])
     # plt.ylim(-0.5,0.0)
-    figname = para['dir'] +  'orbital_' + str(cen) 
-    plt.savefig(figname)
+    figname = para['dir'] +  'orbital_' + str(cen) + '.pdf'
+    plt.savefig(figname,  dpi=600)
     plt.show()
 
 
@@ -194,8 +194,8 @@ def ovlpplot(ovlparray, cen, para):
     ax[1].set_ylabel('Wavefunction Overlap')
     plt.ylim(-1.1, 1.1)
     # plt.ylim(-0.5,0.0)
-    figname = para['dir'] +  'orbital_' + str(cen) 
-    plt.savefig(figname)
+    figname = para['dir'] +  'orbital_' + str(cen) +'overlapl.pdf' 
+    plt.savefig(figname, dpi=600)
     plt.show()
 
 
@@ -213,10 +213,7 @@ def solve(cen, ovlp, old, types, para):
     LHS = setmatrix(cen, ovlp, old, types, para)
     RHS = gen_rhs(cen, para)
     new = np.zeros((para['numtype'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count'] ))
-    if para['gradual'] == 0:
-        new[types][cen] = np.linalg.solve(LHS, RHS)
-    else:
-        new[types][cen] = 0.8 * old[types][cen] + 0.2 * np.linalg.solve(LHS, RHS)
+    new[types][cen] = (1 - para['gradual']) * old[types][cen] + para['gradual'] * np.linalg.solve(LHS, RHS)
     norm = normalize(cen, new, ovlp, types, para)
     new = new / norm   
     return new[types][cen], norm
