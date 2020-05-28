@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import os
+import copy
 from math import sqrt
 
 
@@ -9,26 +10,34 @@ from math import sqrt
 
 # init() set up the original coefficients. The initial NN of dopant NN are assumed to be zero. And we start with a small central coeff
 
-def set_para(OS):
+def set_para(OS, NN, resdir):
     para = {
     'OS'        : OS,
     'orb_count' : 10,
-    'NN_count'  : 1,
+    'NN_count'  : NN,
     'scale'     : 20, 
-    'testcase'  : 300,
+    'testcase'  : 100,
     'limit'     : 1.5, 
     'gradual'   : 0.05, 
     'core'      : '4221', 
     'numtype'   : 2,
+    'sym_op'    : 0
     }
 
-    para['dir'] = 'res/2sublat_' + para['core'] + '_gradual_' + str(para['gradual']) + '_NN_' + str(para['NN_count']) + '_iter_' + str(para['testcase']) + '/'
+    if para['sym_op'] == 1:
+        para['dir'] = 'res/highpre2sublat' +  '_sym_' +  str(para['sym_op']) + '_core_' + para['core'] + '_gradual_' + str(para['gradual']) + '_NN_1_iter_' + str(para['testcase']) + '/'
+    else:
+        para['dir'] = 'res/highpre2sublat' +  '_sym_' +  str(para['sym_op']) + '_core_' + para['core'] + '_gradual_' + str(para['gradual']) + '_NN_' + str(para['NN_count']) + '_iter_' + str(para['testcase']) + '/'
+    
     if OS == 'Mac':
         location = '/Users/rayliu/Desktop/Code/ortho/'
-        os.system('mkdir' + para['dir'])
+        if resdir:
+            os.system('mkdir' + para['dir'])
     else:
         location = 'C:/Users/Ray/Desktop/Code/code1/'
-        os.system('powershell.exe mkdir '+ para['dir'])
+        if resdir:
+            os.system('powershell.exe mkdir '+ para['dir'])
+
     ovlp = []
     if para['NN_count'] == 4:
         ovlp.append(location + para['core'] + '/alloverlap1.dat')
@@ -37,11 +46,11 @@ def set_para(OS):
         ovlp.append(location + para['core'] + '/simpleoverlap1.dat')
         ovlp.append(location + para['core'] + '/simpleoverlap2.dat')
     para['files'] = ovlp
-    
+
     return para
 
 
-def init(para):
+def init_coeff(para):
     # old = np.zeros((para['orb_count'],NN_para['orb_count']))
     old = np.random.rand(para['numtype'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count']) / para['scale']
     new = np.random.rand(para['numtype'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count']) / para['scale']
@@ -49,8 +58,25 @@ def init(para):
     for cen in range(10):
         old[0][cen][cen] = 1
         old[1][cen][cen] = 1
-    return old, new, norm
+    seed = copy.deepcopy(old)
+    return seed, old, new, norm
 
+def init_res_array(para):
+    coeffarray = np.zeros((para['numtype'], para['testcase'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count']))
+    ovlparray = np.zeros((para['numtype'], para['testcase'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count']))
+    return coeffarray, ovlparray
+
+def init_sym(para):
+    sym = np.zeros((para['numtype'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count']))
+    symarray = pmarray()
+    symovlparray = np.zeros((para['numtype'], para['testcase'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count']))
+    return sym, symarray, symovlparray
+
+def init_data(para):
+    wf = np.load(para['dir'] + 'wf.npy')
+    ovlp = np.load(para['dir'] + 'ovlp.npy')
+    sym = np.load(para['dir'] + 'symovlp.npy')
+    return wf, ovlp, sym
 
 def normalize(cen, coeff, ovlp, types, para):
     normalization = 0
@@ -194,20 +220,22 @@ def ovlpplot(ovlparray, cen, para):
     ax[1].set_ylabel('Wavefunction Overlap')
     plt.ylim(-1.1, 1.1)
     # plt.ylim(-0.5,0.0)
-    figname = para['dir'] +  'orbital_' + str(cen) +'overlapl.pdf' 
+    figname = para['dir'] +  'orbital_' + str(cen) + '_NN_' + str(para['NN_count']) +'_overlap.pdf' 
     plt.savefig(figname, dpi=600)
     plt.show()
 
 
-def saveresult(new, norm, seed, para):
-    temp = np.zeros((para['numtype'], para['orb_count'], para['orb_count'] * para['NN_count'] + para['orb_count'] + 1))
-    txtname = para['dir'] +  'wf'
+def saveresult(newarray, ovlparray, symovlparray, norm, seed, para):
+    wfname = para['dir'] +  'wf'
+    ovlpname = para['dir'] + 'ovlp'
+    symname = para['dir'] + 'symovlp'
     seedname = para['dir'] +  'seed'
-    for orb in range(para['orb_count']):
-        for types in range(para['numtype']):
-            temp[types][orb] = np.append(new[types][orb], norm[types][orb])
-    np.save( txtname, temp)
+    normname = para['dir'] +  'norm'
+    np.save( wfname, newarray)
+    np.save( ovlpname, ovlparray)
+    np.save( symname, symovlparray)
     np.save( seedname, seed)
+    np.save( normname, norm)
 
 def solve(cen, ovlp, old, types, para):
     LHS = setmatrix(cen, ovlp, old, types, para)
@@ -218,35 +246,84 @@ def solve(cen, ovlp, old, types, para):
     new = new / norm   
     return new[types][cen], norm
 
+# symmetry takes the coefficients of the 1-NN calculations and propogates it to 4-NN according to symmetry. 
+def symmetry(old, types, symarray, para, sympara):
+    res = np.zeros((sympara['orb_count'], sympara['orb_count'] + sympara['NN_count'] * sympara['orb_count']))
+    for cen in range(sympara['orb_count']):
+        res[cen][:para['orb_count'] + para['NN_count'] * para['orb_count']] = old[types][cen][:]
+        for restNN in range(sympara['NN_count'] - para['NN_count']):
+            for orb in range(para['orb_count']):
+                res[cen][para['orb_count'] * (2 + restNN) + orb] = old[types][cen][orb] * symarray[types][restNN * para['orb_count'] + orb]
+    return res
+
+# generates the plus minus array that the symmetry operation uses
+def pmarray():
+    array1, array2 = [], []
+
+    array1 += [1, 1, -1, -1, -1, 1, -1, 1, 1, 1]
+    array1 += [1, -1, 1, -1, -1, -1, 1, 1, 1, 1]
+    array1 += [1, -1, -1, 1, 1, -1, -1, 1, 1, 1]
+
+    array2 += [1, 1, -1, -1, -1, 1, -1, -1, -1, 1]
+    array2 += [1, -1, 1, -1, -1, -1, 1, 1, -1, 1]
+    array2 += [1, -1, -1, 1, 1, -1, -1, 1, -1, 1]
+
+    return [array1, array2]
+
 # main() iteratively solve the matrix equation until the old and new coefficients converge.
-def main():
-    para = set_para('Win')
+def main(PostProcess):
+
+    
+    para= set_para('Win', 4, 1)
+    sympara = set_para('Win', 4, 0)
     ovlp = readovlp(para)
+    symovlp = readovlp(sympara)
+
+    if not PostProcess:
     # print(np.shape(ovlp), ovlp)
-    old, new, norm = init(para)
-    seed = old
-    coeffarray = np.zeros((para['numtype'], para['testcase'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count']))
-    ovlparray = np.zeros((para['numtype'], para['testcase'], para['orb_count'], para['orb_count'] + para['NN_count'] * para['orb_count']))
-    start_time = time.time()
-    for itest in range(para['testcase']):
-        for types in range(para['numtype']):
-            for cen in range(para['orb_count']):
-                new[types][cen], norm[types][cen] = solve(cen, ovlp, old,  types, para)
-                print(norm[types][cen], itest)
-            old[types] = new[types]
-            for cen in range(para['orb_count']):
-                ovlparray[types][itest][cen] = cal_ovlp(cen, old, ovlp, types, para)
-            coeffarray[types][itest] = new[types]
+        seed, old, new, norm = init_coeff(para)
+        coeffarray, ovlparray = init_res_array(para)
+    
+
+        if sympara['sym_op'] == 1:
+            sym, symarray, symovlparray = init_sym(sympara)
+        else:
+            symovlparray = np.zeros(1)
+
+        start_time = time.time()
+        for itest in range(para['testcase']):
+            for types in range(para['numtype']):
+                for cen in range(para['orb_count']):
+                    new[types][cen], norm[types][cen] = solve(cen, ovlp, old,  types, para)
+                    print(norm[types][cen], itest)
+                old[types] = new[types]
+
+                if sympara['sym_op'] == 1:
+                    sym[types] = symmetry(old, types, symarray, para, sympara)
+
+                for cen in range(para['orb_count']):
+                    ovlparray[types][itest][cen] = cal_ovlp(cen, old, ovlp, types, para)
+
+                    if sympara['sym_op'] == 1:
+                        symovlparray[types][itest][cen] = cal_ovlp(cen, sym, symovlp, types, sympara)
+
+                coeffarray[types][itest] = new[types]
     # print(new[5])
-    elapsed_time = time.time() - start_time
-    print(elapsed_time)
+        elapsed_time = time.time() - start_time
+        print(elapsed_time)
     # set which central function to plot
-    cen = 0
-    resplot(coeffarray,  cen, para)
-    ovlpplot(ovlparray,  cen, para)
-    saveresult(new, norm, seed, para)
+        saveresult(coeffarray, ovlparray, symovlparray, norm, seed, para)
+
+    else:
+        coeffarray, ovlparray, symovlparray = init_data(para)
+        cen = 0
+        resplot(coeffarray,  cen, para)
+        ovlpplot(ovlparray,  cen, para)
+        if sympara['sym_op'] == 1:
+            ovlpplot(symovlparray, cen, sympara)
+    
 
 
 # np.savetxt('testout', newarray, depara['limit']er='')
 
-main()
+main(0)
