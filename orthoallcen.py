@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 import copy
+from matplotlib.backends.backend_pdf import PdfPages
 from math import sqrt
 
 
@@ -16,12 +17,14 @@ def set_para(OS, NN, resdir):
     'orb_count' : 10,
     'NN_count'  : NN,
     'scale'     : 20, 
-    'testcase'  : 100,
+    'testcase'  : 300,
     'limit'     : 1.5, 
     'gradual'   : 0.05, 
     'core'      : '4221', 
     'numtype'   : 2,
-    'sym_op'    : 0
+    'sym_op'    : 0,
+    'lower'     : 80,
+    'upper'     : 150
     }
 
     if para['sym_op'] == 1:
@@ -190,53 +193,6 @@ def gen_rhs(cen, para):  # here cen indicates the orbital on the central site, w
 
 # test function to see if there's repeating pattern in the
 
-def resplot(coeffarray, cen, para):
-    ref = range(para['testcase'])
-    print(ref)
-    fig, ax = plt.subplots(2,1, sharex='all', sharey='all')
-    cen1 = coeffarray[0, :, cen, 0]
-    cen2 = coeffarray[1, :, cen, 0]
-    all1 = coeffarray[0, :, cen, :]
-    all2 = coeffarray[1, :, cen, :]
-    ax[0].plot(ref, cen1, label='cen', linewidth=10)
-    ax[1].plot(ref, cen2, label='cen', linewidth=10)
-    ax[0].plot(ref, all1)
-    ax[1].plot(ref, all2)
-    ax[1].set_xlabel('No. of iterations')
-    ax[1].set_ylabel('Orbital Coefficients')
-    plt.ylim(-para['limit'], para['limit'])
-    # plt.ylim(-0.5,0.0)
-    figname = para['dir'] +  'orbital_' + str(cen) + '.pdf'
-    plt.savefig(figname,  dpi=600)
-    plt.show()
-
-
-def ovlpplot(ovlparray, cen, para):
-    ref = range(para['testcase'])
-    fig, ax = plt.subplots(2,1, sharex='all', sharey='all')
-    ax[0].plot(ref, ovlparray[0, :, cen, :])
-    ax[1].plot(ref, ovlparray[1, :, cen, :])
-    ax[1].set_xlabel('No. of iterations')
-    ax[1].set_ylabel('Wavefunction Overlap')
-    plt.ylim(-1.1, 1.1)
-    # plt.ylim(-0.5,0.0)
-    figname = para['dir'] +  'orbital_' + str(cen) + '_NN_' + str(para['NN_count']) +'_overlap.pdf' 
-    plt.savefig(figname, dpi=600)
-    plt.show()
-
-
-def saveresult(newarray, ovlparray, symovlparray, norm, seed, para):
-    wfname = para['dir'] +  'wf'
-    ovlpname = para['dir'] + 'ovlp'
-    symname = para['dir'] + 'symovlp'
-    seedname = para['dir'] +  'seed'
-    normname = para['dir'] +  'norm'
-    np.save( wfname, newarray)
-    np.save( ovlpname, ovlparray)
-    np.save( symname, symovlparray)
-    np.save( seedname, seed)
-    np.save( normname, norm)
-
 def solve(cen, ovlp, old, types, para):
     LHS = setmatrix(cen, ovlp, old, types, para)
     RHS = gen_rhs(cen, para)
@@ -270,8 +226,70 @@ def pmarray():
 
     return [array1, array2]
 
+def resplot(coeffarray, para):
+    ref = range(para['testcase'])
+    figname = para['dir'] +  'allorbital_'  + '.pdf'
+    with PdfPages(figname) as pdf:
+        for cen in range(para['orb_count']):
+            plt.figure(figsize=(3, 3))
+            fig, ax = plt.subplots(2,1, sharex='all', sharey='all')
+            fig.suptitle('Central Orbital {}' .format(cen+1))
+            cen1 = coeffarray[0, :, cen, cen]
+            cen2 = coeffarray[1, :, cen, cen]
+            all1 = coeffarray[0, :, cen, :]
+            all2 = coeffarray[1, :, cen, :]
+            ax[0].plot(ref, cen1, label='cen', linewidth=10)
+            ax[1].plot(ref, cen2, label='cen', linewidth=10)
+            ax[0].plot(ref, all1)
+            ax[1].plot(ref, all2)
+            ax[1].set_xlabel('No. of iterations')
+            ax[1].set_ylabel('Orbital Coefficients')
+            plt.ylim(-para['limit'], para['limit'])
+    # plt.ylim(-0.5,0.0)
+            pdf.savefig()
+            plt.close()
+    
+
+def ovlpplot(ovlparray, para):
+    ref = range(para['upper'] - para['lower'])
+    figname = para['dir'] +  'allorbital_' + '_NN_' + str(para['NN_count']) +'_overlap' + '_zoom_' + str(para['lower']) + str(para['upper']) +  '.pdf' 
+    with PdfPages(figname) as pdf:
+        for cen in range(para['orb_count']):
+            plt.figure(figsize=(3, 3))
+            fig, ax = plt.subplots(2,1, sharex='all', sharey='all')
+            fig.suptitle("Central Orbital Overlap {}" .format(cen+1))
+            ax[0].plot(ref, ovlparray[0, para['lower']:para['upper'], cen, :])
+            ax[1].plot(ref, ovlparray[1, para['lower']:para['upper'], cen, :])
+            ax[1].set_xlabel('No. of iterations')
+            ax[1].set_ylabel('Wavefunction Overlap')
+            plt.ylim(-0.25, 0.25)
+    # plt.ylim(-0.5,0.0)
+            pdf.savefig()
+            plt.close()
+
+
+def saveresult(newarray, ovlparray, symovlparray, norm, seed, para):
+    wfname = para['dir'] +  'wf'
+    ovlpname = para['dir'] + 'ovlp'
+    symname = para['dir'] + 'symovlp'
+    seedname = para['dir'] +  'seed'
+    normname = para['dir'] +  'norm'
+    np.save( wfname, newarray)
+    np.save( ovlpname, ovlparray)
+    np.save( symname, symovlparray)
+    np.save( seedname, seed)
+    np.save( normname, norm)
+
+
+def printresult(coeffarray, ovlparray, para):
+    for itr, ovlp in enumerate(np.sum(abs(ovlparray[0, para['lower']:para['upper'], 0, 1:]), axis=1)/49):
+        print(itr, ovlp)
+    np.savetxt(para['dir'] + 'coeff1.dat', np.reshape(coeffarray[0, 90, :, :], 500)[None], delimiter='  ')
+    np.savetxt(para['dir'] + 'coeff2.dat', np.reshape(coeffarray[1, 90, :, :], 500)[None], delimiter='  ')
+
+
 # main() iteratively solve the matrix equation until the old and new coefficients converge.
-def main(PostProcess):
+def main(PostProcess, Repeat):
 
     
     para= set_para('Win', 4, 1)
@@ -282,6 +300,10 @@ def main(PostProcess):
     if not PostProcess:
     # print(np.shape(ovlp), ovlp)
         seed, old, new, norm = init_coeff(para)
+
+        if Repeat:
+            old = np.load(para['dir'] + 'seed.npy')
+
         coeffarray, ovlparray = init_res_array(para)
     
 
@@ -316,14 +338,12 @@ def main(PostProcess):
 
     else:
         coeffarray, ovlparray, symovlparray = init_data(para)
-        cen = 0
-        resplot(coeffarray,  cen, para)
-        ovlpplot(ovlparray,  cen, para)
+        #resplot(coeffarray,  para)
+        #ovlpplot(ovlparray,  para)
+        printresult(coeffarray, ovlparray, para)
         if sympara['sym_op'] == 1:
-            ovlpplot(symovlparray, cen, sympara)
+            ovlpplot(symovlparray, sympara)
     
-
-
 # np.savetxt('testout', newarray, depara['limit']er='')
 
-main(0)
+main(1, 0)
