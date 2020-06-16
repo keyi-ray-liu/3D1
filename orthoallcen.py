@@ -284,8 +284,10 @@ def saveresult(newarray, ovlparray, symovlparray, norm, seed, para):
 def printresult(coeffarray, ovlparray, para):
     for itr, ovlp in enumerate(np.sum(abs(ovlparray[0, para['lower']:para['upper'], 0, 1:]), axis=1)/49):
         print(itr, ovlp)
-    np.savetxt(para['dir'] + 'coeff1.dat', np.reshape(coeffarray[0, 90, :, :], 500)[None], delimiter='  ')
-    np.savetxt(para['dir'] + 'coeff2.dat', np.reshape(coeffarray[1, 90, :, :], 500)[None], delimiter='  ')
+    #np.savetxt(para['dir'] + 'coeff1.dat', np.reshape(coeffarray[0, 90, :, :], 500)[None], delimiter='  ')
+    #np.savetxt(para['dir'] + 'coeff2.dat', np.reshape(coeffarray[1, 90, :, :], 500)[None], delimiter='  ')
+    np.savetxt(para['dir'] + 'coeff1.dat', coeffarray[0, 90, :, :], delimiter='  ')
+    np.savetxt(para['dir'] + 'coeff2.dat', coeffarray[0, 90, :, :], delimiter='  ')
 
 
 # main() iteratively solve the matrix equation until the old and new coefficients converge.
