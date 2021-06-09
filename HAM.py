@@ -11,10 +11,12 @@ def readelectron(tag):
 def readoffdiag():
     raw =  np.loadtxt('offdiag')
     t = np.zeros((len(raw), 20, 20))
+    c = 0
     for i, row in enumerate(raw):
         for j in range(10):
             for k in range(j, 10):
-                t[i][j][k] = t[i][k][j] = t[i][j+10][k+10] = t[i][k+10][j+10] = row[i * 10 + j]
+                t[i][j][k] = t[i][k][j] = t[i][j+10][k+10] = t[i][k+10][j+10] = row[c]
+                c += 1
     return t
 
 
