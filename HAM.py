@@ -22,6 +22,6 @@ def calpert(wfs, t):
     return sum([reduce(np.multiply, np.conj(wf), t[i], wf) for i, wf in enumerate(wfs)])
 
 if __name__ =='__main__':
-    tag = sys.argv[1]
-    wfs, t = readelectron(tag), readoffdiag()
-    print(calpert(wfs, t))
+    for tag in range(1, 13):
+        wfs, t = readelectron(tag), readoffdiag()
+        print(calpert(wfs, t))
